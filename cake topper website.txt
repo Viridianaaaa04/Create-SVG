@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Cake Topper SVG Generator</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- SVG.js and plugins for manipulation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.js/3.2.0/svg.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.select.js/3.0.1/svg.select.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.draggable.js/3.0.2/svg.draggable.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Cool Gray 100 */
+        }
+        /* Custom styles for SVG.js selection box */
+        .svg_select_boundingRect {
+            stroke: #4f46e5; /* Indigo 600 */
+            stroke-width: 1;
+            stroke-dasharray: 4 4;
+            fill: rgba(79, 70, 229, 0.05);
+        }
+        .svg_select_points_lt, .svg_select_points_rt, .svg_select_points_rb, .svg_select_points_lb {
+            fill: #4f46e5;
+            stroke: white;
+            stroke-width: 1;
+        }
+        .svg_select_points_r, .svg_select_points_b {
+            visibility: hidden; /* Hide side resize handles for simplicity */
+        }
+        /* Custom class for selected layer */
+        .layer-selected {
+            background-color: #e0e7ff; /* Indigo 100 */
+            font-weight: 600;
+        }
+        /* Simple spinner animation */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #4f46e5;
+            border-radius: 50%;
+            width: 2rem;
+            height: 2rem;
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white shadow-md w-full">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <h1 class="text-2xl font-bold text-gray-800">AI Cake Topper SVG Generator</h1>
+            <p class="text-gray-500 text-sm">Describe your design, and let AI create the layered SVG for you.</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto p-4 sm:p-6 lg:p-8 flex-grow grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left Panel: Controls -->
+        <div class="lg:col-span-1 bg-white rounded-lg shadow-md p-6 flex flex-col h-full">
+            <!-- Prompt Input -->
+            <div>
+                <label for="prompt" class="block text-sm font-medium text-gray-700">1. Enter Your Design Prompt</label>
+                <textarea id="prompt" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="e.g., 'Happy 40th Birthday, David!' in a bold script font with a star."></textarea>
+            </div>
+            
+            <button id="generate-btn" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center disabled:bg-indigo-300">
+                <span id="generate-btn-text">Generate Design</span>
+                <div id="spinner" class="spinner hidden ml-3"></div>
+            </button>
+            <div id="error-message" class="text-red-500 text-sm mt-2"></div>
+
+            <hr class="my-6">
+
+            <!-- Layers Panel -->
+            <div class="flex-grow flex flex-col min-h-0">
+                <h2 class="text-sm font-medium text-gray-700">2. Edit Layers</h2>
+                <div id="layers-panel" class="mt-2 flex-grow overflow-y-auto bg-gray-50 p-2 rounded-md border border-gray-200">
+                    <p class="text-gray-400 text-center text-sm py-4">Your layers will appear here...</p>
+                </div>
+            </div>
+
+            <!-- Editing Controls (contextual) -->
+            <div id="edit-controls" class="mt-4 hidden">
+                <label for="color-picker" class="block text-sm font-medium text-gray-700">Layer Color</label>
+                <input type="color" id="color-picker" class="mt-1 w-full h-10 p-1 border border-gray-300 rounded-md cursor-pointer">
+            </div>
+
+             <hr class="my-6">
+            
+            <!-- Download Button -->
+            <div>
+                <h2 class="text-sm font-medium text-gray-700">3. Download</h2>
+                <button id="download-btn" class="mt-2 w-full bg-green-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-green-700 disabled:bg-green-300 flex items-center justify-center" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                    Download SVG
+                </button>
+            </div>
+        </div>
+
+        <!-- Right Panel: SVG Canvas -->
+        <div class="lg:col-span-2 bg-white rounded-lg shadow-md p-4 flex items-center justify-center border-2 border-dashed border-gray-200">
+            <div id="svg-canvas" class="w-full h-full min-h-[400px] lg:min-h-0"></div>
+        </div>
+    </main>
+    
+    <script>
+        // --- DOM Elements ---
+        const promptEl = document.getElementById('prompt');
+        const generateBtn = document.getElementById('generate-btn');
+        const generateBtnText = document.getElementById('generate-btn-text');
+        const spinner = document.getElementById('spinner');
+        const errorMessage = document.getElementById('error-message');
+        const layersPanel = document.getElementById('layers-panel');
+        const editControls = document.getElementById('edit-controls');
+        const colorPicker = document.getElementById('color-picker');
+        const downloadBtn = document.getElementById('download-btn');
+        const svgCanvasEl = document.getElementById('svg-canvas');
+
+        // --- State ---
+        let svgDraw;
+        let selectedElement = null;
+
+        // --- SVG.js Initialization ---
+        function initializeCanvas() {
+            if (svgDraw) svgDraw.remove();
+            svgDraw = SVG().addTo('#svg-canvas').size('100%', '100%');
+        }
+        
+        initializeCanvas();
+
+        // --- API Call to Gemini ---
+        const systemPrompt = `You are an expert SVG designer specializing in creating layered designs for cutting machines like Cricut and Glowforge, specifically for cake toppers. Analyze the user's prompt and convert it into a structured JSON format representing the layers of an SVG file.
+
+        **RULES:**
+        1.  **JSON Structure:** The root of the JSON object MUST be \`{ "viewBox": "0 0 500 500", "layers": [...] }\`.
+        2.  **Layers:** The \`layers\` array must contain objects. Each object is a distinct, non-overlapping layer suitable for cutting.
+        3.  **Layer Object Schema:** Each layer object must have:
+            * \`id\`: a unique string ID (e.g., "layer1_text").
+            * \`type\`: MUST be either 'path' or 'text'.
+            * \`attributes\`: An object containing valid SVG attributes.
+        4.  **Path Attributes:** For \`type: 'path'\`, \`attributes\` MUST include \`d\` (the SVG path data string) and \`fill\`.
+        5.  **Text Attributes:** For \`type: 'text'\`, \`attributes\` MUST include \`text\` (the content), \`x\`, \`y\`, \`font-family\` (e.g., 'cursive', 'sans-serif', 'serif'), \`font-size\`, \`font-weight\` ('normal', 'bold'), and \`fill\`. Anchor text in the middle using \`text-anchor: "middle"\`.
+        6.  **Simplicity:** Designs should be simple, bold, and connected where necessary to form a solid object. Avoid overly complex or thin paths.
+        7.  **Colors:** Use simple, web-safe hex color codes.
+
+        **EXAMPLE:**
+        * **User Prompt:** "Happy 10th Birthday Sarah"
+        * **Expected JSON Output:**
+            \`\`\`json
+            {
+              "viewBox": "0 0 500 500",
+              "layers": [
+                {
+                  "id": "layer1_happy_birthday",
+                  "type": "text",
+                  "attributes": {
+                    "text": "Happy 10th Birthday",
+                    "x": 250,
+                    "y": 200,
+                    "font-family": "cursive",
+                    "font-size": "60",
+                    "font-weight": "bold",
+                    "fill": "#333333",
+                    "text-anchor": "middle"
+                  }
+                },
+                {
+                  "id": "layer2_sarah",
+                  "type": "text",
+                  "attributes": {
+                    "text": "Sarah",
+                    "x": 250,
+                    "y": 280,
+                    "font-family": "serif",
+                    "font-size": "80",
+                    "font-weight": "bold",
+                    "fill": "#333333",
+                    "text-anchor": "middle"
+                  }
+                }
+              ]
+            }
+            \`\`\`
+        `;
+
+        async function generateSVGData(userPrompt) {
+            setLoading(true);
+            errorMessage.textContent = '';
+            
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userPrompt }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: { responseMimeType: "application/json" }
+            };
+
+            try {
+                let response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                
+                if (!jsonText) {
+                    throw new Error("Received an empty response from the AI.");
+                }
+
+                return JSON.parse(jsonText);
+
+            } catch (error) {
+                console.error("Error fetching or parsing AI response:", error);
+                errorMessage.textContent = "Failed to generate design. Please try again or rephrase your prompt.";
+                return null;
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // --- UI & State Management ---
+        function setLoading(isLoading) {
+            generateBtn.disabled = isLoading;
+            spinner.classList.toggle('hidden', !isLoading);
+            generateBtnText.textContent = isLoading ? 'Generating...' : 'Generate Design';
+        }
+
+        function clearWorkspace() {
+            initializeCanvas();
+            layersPanel.innerHTML = '<p class="text-gray-400 text-center text-sm py-4">Your layers will appear here...</p>';
+            downloadBtn.disabled = true;
+            editControls.classList.add('hidden');
+            selectedElement = null;
+        }
+
+        function updateLayerPanel() {
+            layersPanel.innerHTML = '';
+            const elements = svgDraw.children();
+            
+            if (elements.length === 0) {
+                 layersPanel.innerHTML = '<p class="text-gray-400 text-center text-sm py-4">No layers to show.</p>';
+                 return;
+            }
+
+            elements.forEach(el => {
+                const layerId = el.id();
+                const layerDiv = document.createElement('div');
+                layerDiv.className = 'p-2 rounded-md cursor-pointer flex items-center justify-between hover:bg-gray-100';
+                layerDiv.dataset.id = layerId;
+
+                const colorSwatch = document.createElement('span');
+                colorSwatch.className = 'w-4 h-4 rounded-full inline-block mr-2 border';
+                colorSwatch.style.backgroundColor = el.attr('fill');
+
+                const layerName = document.createElement('span');
+                layerName.textContent = layerId;
+                layerName.className = 'text-sm truncate flex-grow';
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'flex items-center'
+                wrapper.appendChild(colorSwatch);
+                wrapper.appendChild(layerName);
+
+                layerDiv.appendChild(wrapper);
+                layersPanel.appendChild(layerDiv);
+                
+                if (selectedElement && selectedElement.id() === layerId) {
+                    layerDiv.classList.add('layer-selected');
+                }
+
+                layerDiv.addEventListener('click', () => {
+                    selectElement(el);
+                });
+            });
+        }
+        
+        function selectElement(el) {
+            if (selectedElement) {
+                selectedElement.selectize(false);
+            }
+
+            selectedElement = el;
+            
+            if (el) {
+                el.selectize({
+                    points: 'lt,rt,rb,lb,r,b',
+                    rotationPoint: false,
+                }).resize();
+                
+                el.draggable();
+
+                colorPicker.value = el.attr('fill');
+                editControls.classList.remove('hidden');
+            } else {
+                editControls.classList.add('hidden');
+            }
+
+            updateLayerPanel();
+        }
+
+        // --- SVG Rendering ---
+        function renderSVG(svgData) {
+            clearWorkspace();
+
+            if (!svgData || !svgData.layers) {
+                errorMessage.textContent = 'AI response was not in the correct format. Could not render.';
+                return;
+            }
+
+            svgDraw.viewbox(svgData.viewBox || '0 0 500 500');
+
+            svgData.layers.forEach(layer => {
+                let element;
+                if (layer.type === 'text') {
+                    element = svgDraw.text(layer.attributes.text).attr(layer.attributes);
+                } else if (layer.type === 'path') {
+                    element = svgDraw.path(layer.attributes.d).attr(layer.attributes);
+                }
+
+                if (element) {
+                    element.id(layer.id);
+                    element.on('click', () => selectElement(element));
+                }
+            });
+
+            updateLayerPanel();
+            downloadBtn.disabled = false;
+        }
+
+        // --- Event Handlers ---
+        generateBtn.addEventListener('click', async () => {
+            const userPrompt = promptEl.value;
+            if (!userPrompt) {
+                errorMessage.textContent = 'Please enter a prompt.';
+                return;
+            }
+            const svgData = await generateSVGData(userPrompt);
+            if (svgData) {
+                renderSVG(svgData);
+            }
+        });
+
+        colorPicker.addEventListener('input', (e) => {
+            if (selectedElement) {
+                selectedElement.fill(e.target.value);
+                updateLayerPanel();
+            }
+        });
+
+        svgCanvasEl.addEventListener('click', (e) => {
+            // Deselect if clicking the background
+            if (e.target === svgCanvasEl || e.target.tagName === 'svg') {
+                selectElement(null);
+            }
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            if (!svgDraw) return;
+             // Temporarily deselect element for a clean download
+            if(selectedElement) selectedElement.selectize(false);
+
+            const svgString = svgDraw.svg();
+
+            // Re-select the element if it was selected before
+            if(selectedElement) selectElement(selectedElement);
+
+            const blob = new Blob([svgString], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'cake-topper.svg';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+    </script>
+</body>
+</html>
