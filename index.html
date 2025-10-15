@@ -8,43 +8,32 @@
     <script src="https://cdn.jsdelivr.net/npm/@svgdotjs/svg.js@3.0/dist/svg.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@svgdotjs/svg.select.js@3.0/dist/svg.select.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@svgdotjs/svg.draggable.js@3.0/dist/svg.draggable.min.js"></script>
+    <!-- Netlify Identity Widget for login/signup -->
+    <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
         .tab-active { border-color: #4f46e5; color: #4f46e5; font-weight: 600; }
         .tool-active { background-color: #e0e7ff; color: #4f46e5; }
         .layer-selected { background-color: #e0e7ff !important; }
-        .dragging { opacity: 0.5; background: #c7d2fe; }
-        .drag-over { border-top: 2px solid #4f46e5; }
-        .magic-brush-cursor { cursor: crosshair; }
-        #magic-edit-mask { fill: rgba(79, 70, 229, 0.2); stroke: #4f46e5; stroke-width: 1.5px; stroke-dasharray: 6,4; }
-        /* SVG.js select handles customization */
-        .svg_select_points_lt, .svg_select_points_rt, .svg_select_points_rb, .svg_select_points_lb {
-            width: 10px; height: 10px; border: 1px solid #4f46e5; background-color: white; border-radius: 50%;
-        }
-        .svg_select_points_r, .svg_select_points_b {
-            width: 10px; height: 10px; border: 1px solid #4f46e5; background-color: white;
-        }
+        #paywall-overlay { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
 
-    <div class="flex flex-col md:flex-row h-screen">
+    <div class="flex flex-col md:flex-row h-screen relative">
         <!-- Left Panel: Controls -->
         <aside class="w-full md:w-96 bg-white p-6 border-r border-gray-200 flex flex-col space-y-4 overflow-y-auto">
             <div class="flex items-center justify-between">
                  <h1 class="text-2xl font-bold text-gray-900">SVG Creator Pro</h1>
-                 <div class="flex space-x-2">
-                    <button id="undo-btn" title="Undo" class="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 15l-3-3m0 0l3-3m-3 3h8A5 5 0 0121 12v1"></path></svg></button>
-                    <button id="redo-btn" title="Redo" class="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 15l3-3m0 0l-3-3m3 3H5a5 5 0 00-5 5v1"></path></svg></button>
-                </div>
+                 <!-- Login/User status -->
+                 <div id="user-status"></div>
             </div>
-
+            
             <!-- Tabs -->
             <div class="border-b border-gray-200">
                 <nav class="-mb-px flex space-x-6" aria-label="Tabs">
                     <button id="tab-generate" class="whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm tab-active">Generate</button>
-                    <button id="tab-library" class="whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">Library</button>
                 </nav>
             </div>
             
@@ -54,366 +43,250 @@
                     <label for="prompt" class="block text-sm font-medium text-gray-700 mb-1">1. Design Prompt</label>
                     <textarea id="prompt" rows="3" class="w-full p-2 border rounded-md" placeholder="e.g., A happy dinosaur"></textarea>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">2. Style & Constraints</label>
-                    <select id="style-preset" class="w-full p-2 border rounded-md text-sm mb-2">
-                        <option value="default">Default Style</option>
-                        <option value="Cartoon">Cartoon</option><option value="Geometric">Geometric</option><option value="Minimalist">Minimalist</option><option value="Vintage">Vintage</option><option value="Elegant Script">Elegant Script</option><option value="Art Deco">Art Deco</option><option value="Sci-Fi">Sci-Fi</option><option value="Gothic">Gothic</option><option value="Pop Art">Pop Art</option><option value="Steampunk">Steampunk</option>
-                    </select>
-                </div>
                 <button id="generate-btn" class="w-full flex items-center justify-center bg-indigo-600 text-white font-semibold py-2.5 px-4 rounded-md hover:bg-indigo-700">Generate Design</button>
                 <p id="error-message" class="text-sm text-red-600"></p>
             </div>
 
-            <!-- Library Panel -->
-            <div id="panel-library" class="hidden flex-grow flex flex-col">
-                <p class="text-sm text-gray-600 mb-2">Drag your saved assets onto the canvas.</p>
-                <div id="library-items" class="flex-grow bg-gray-50 border rounded-md p-2 space-y-1 overflow-y-auto"></div>
-            </div>
-
-            <!-- Layers & Edit Panel -->
+            <!-- Layers Panel -->
             <div class="flex-grow flex flex-col">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-sm font-medium text-gray-700 mb-2">3. Layers & Editing</h2>
-                     <button id="save-to-library-btn" title="Save Selected to Library" class="hidden p-2 rounded-md hover:bg-gray-100"><svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg></button>
+                <h2 class="text-sm font-medium text-gray-700 mb-2">2. Layers</h2>
+                <div id="layers-panel" class="flex-grow bg-gray-50 border rounded-md p-2 space-y-1 overflow-y-auto">
+                     <p class="text-gray-400 text-center text-sm py-4">Generate a design to see layers.</p>
                 </div>
-                <div id="layers-panel" class="flex-grow bg-gray-50 border rounded-md p-2 space-y-1 overflow-y-auto"></div>
-                <div id="edit-controls-container" class="space-y-4 pt-4"></div>
             </div>
             <button id="download-btn" disabled class="w-full bg-green-600 text-white font-semibold py-2.5 px-4 rounded-md hover:bg-green-700">Download SVG</button>
         </aside>
         
-        <!-- Center Panel: Toolbar -->
-        <div class="bg-white p-2 border-r border-gray-200 flex flex-col items-center space-y-2">
-            <button id="tool-select" title="Select & Move" class="tool-active p-2 rounded-md"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg></button>
-            <button id="tool-points" title="Edit Vector Points" class="p-2 rounded-md"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z"></path></svg></button>
-            <button id="tool-magic-edit" title="Magic Edit" class="p-2 rounded-md"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></button>
-        </div>
-
         <!-- Right Panel: SVG Canvas -->
         <main class="flex-1 bg-gray-100 p-4 md:p-8 flex items-center justify-center relative">
             <div id="svg-canvas" class="w-full h-full bg-white rounded-lg shadow-inner border border-gray-200 aspect-square"></div>
-            <!-- Magic Edit Modal -->
-            <div id="magic-edit-modal" class="hidden absolute bottom-10 left-1/2 -translate-x-1/2 bg-white p-4 rounded-lg shadow-2xl flex items-center space-x-2 z-50">
-                <input type="text" id="magic-edit-prompt" class="p-2 border rounded-md" placeholder="e.g., add a crown">
-                <button id="magic-edit-submit" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md">Update</button>
-                <button id="magic-edit-cancel" class="p-2 rounded-md hover:bg-gray-100">&times;</button>
-            </div>
         </main>
+
+        <!-- NEW: Paywall Overlay -->
+        <div id="paywall-overlay" class="hidden absolute inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center">
+                <h2 id="paywall-title" class="text-2xl font-bold mb-4"></h2>
+                <p id="paywall-message" class="text-gray-600 mb-6"></p>
+                <button id="paywall-action-btn" class="w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-md hover:bg-indigo-700"></button>
+                <button id="logout-btn" class="mt-4 text-sm text-gray-500 hover:underline">Log Out</button>
+            </div>
+        </div>
     </div>
 
+    <script src="https://js.stripe.com/v3/"></script>
     <script>
         // --- DOM Elements ---
-        const svgCanvasEl = document.getElementById('svg-canvas');
+        const userStatusEl = document.getElementById('user-status');
+        const paywallOverlay = document.getElementById('paywall-overlay');
+        const paywallTitle = document.getElementById('paywall-title');
+        const paywallMessage = document.getElementById('paywall-message');
+        const paywallActionBtn = document.getElementById('paywall-action-btn');
+        const logoutBtn = document.getElementById('logout-btn');
         const generateBtn = document.getElementById('generate-btn');
+        const svgCanvasEl = document.getElementById('svg-canvas');
         const layersPanel = document.getElementById('layers-panel');
-        const libraryItemsEl = document.getElementById('library-items');
-        const editControlsContainer = document.getElementById('edit-controls-container');
-        const saveToLibraryBtn = document.getElementById('save-to-library-btn');
         const downloadBtn = document.getElementById('download-btn');
-        const errorMessage = document.getElementById('error-message');
         
         // --- State ---
         let svgDraw;
-        let activeTool = 'select'; // 'select', 'points', 'magic-edit'
-        let selectedElement = null;
-        let history = [];
-        let historyIndex = -1;
-        let magicEditMask = null;
-
-        // --- Initialization ---
+        let hasAccess = false;
+        
+        // --- SVG Canvas Initialization ---
         function initializeCanvas() {
             if (svgDraw) svgDraw.remove();
             svgDraw = SVG().addTo('#svg-canvas').size('100%', '100%').viewbox(0,0,500,500);
-            updateLibraryPanel();
-            saveState(); // Initial empty state
         }
 
-        // --- History (Undo/Redo) ---
-        function saveState() { /* ... Logic ... */ }
-        function undo() { /* ... Logic ... */ }
-        function redo() { /* ... Logic ... */ }
-        function loadState(svgString) { /* ... Logic ... */ }
-        function updateHistoryButtons() { /* ... Logic ... */ }
+        // --- Authentication and Paywall Logic ---
+        netlifyIdentity.on('login', user => {
+            userStatusEl.innerHTML = `<span class="text-sm">${user.email}</span><button onclick="netlifyIdentity.logout()" class="ml-2 text-sm font-medium text-gray-600 hover:text-indigo-600">Log Out</button>`;
+            checkUserAccess();
+        });
 
-        // --- API Calls ---
-        async function callApi(endpoint, body) { /* ... Logic ... */ }
-        
-        // --- Tool & Selection Logic ---
-        function setActiveTool(tool) {
-            activeTool = tool;
-            document.querySelectorAll('.tool-active').forEach(b => b.classList.remove('tool-active'));
-            document.getElementById(`tool-${tool}`).classList.add('tool-active');
-            svgCanvasEl.style.cursor = tool === 'magic-edit' ? 'crosshair' : 'default';
-            if (selectedElement) selectElement(selectedElement); // Re-apply selection style for the new tool
-        }
+        netlifyIdentity.on('logout', () => {
+            userStatusEl.innerHTML = `<button onclick="netlifyIdentity.open()" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">Log In / Sign Up</button>`;
+            hasAccess = false;
+            showPaywall('login');
+        });
 
-        function selectElement(el) {
-            if (selectedElement) {
-                selectedElement.selectize(false).draggable(false);
+        async function checkUserAccess() {
+            const user = netlifyIdentity.currentUser();
+            if (!user) {
+                showPaywall('login');
+                return;
             }
-            selectedElement = el;
-            
-            if (el) {
-                if (activeTool === 'select') {
-                    el.selectize({ points: 'lt,rt,rb,lb,r,b', rotationPoint: false }).resize().draggable();
-                } else if (activeTool === 'points') {
-                    if (el.type === 'path') {
-                        el.selectize({ deepSelect: true, pointType: 'circle', pointSize: 8 });
-                    } else {
-                        el.selectize(false); // Only paths can be point-edited
-                    }
-                }
-                el.on('resizedone', saveState).on('dragend', saveState);
-            }
-            updateLayerPanel();
-            updateEditControls();
-        }
 
-        // --- UI Update Functions ---
-        function updateLayerPanel() { /* ... Logic ... */ }
-        function updateEditControls() { /* ... Logic ... */ }
-        function updateLibraryPanel() { /* ... Logic ... */ }
-
-        // --- Feature Logic ---
-        function saveToLibrary() { /* ... Logic ... */ }
-        function addFromLibrary(name) { /* ... Logic ... */ }
-        function startMagicEdit(e) { /* ... Logic ... */ }
-        function drawMagicEdit(e) { /* ... Logic ... */ }
-        function endMagicEdit() { /* ... Logic ... */ }
-        function submitMagicEdit() { /* ... Logic ... */ }
-        
-        // --- Full Implementation ---
-        // (This section replaces the simplified logic blocks above for a fully functional app)
-
-        function saveState() {
-            if (!svgDraw) return;
-            const currentState = svgDraw.svg();
-            if (historyIndex > -1 && history[historyIndex] === currentState) return;
-            
-            if (historyIndex < history.length - 1) {
-                history = history.slice(0, historyIndex + 1);
-            }
-            history.push(currentState);
-            historyIndex++;
-            updateHistoryButtons();
-        }
-
-        function undo() {
-            if (historyIndex > 0) {
-                historyIndex--;
-                loadState(history[historyIndex]);
-            }
-        }
-
-        function redo() {
-            if (historyIndex < history.length - 1) {
-                historyIndex++;
-                loadState(history[historyIndex]);
-            }
-        }
-        
-        function loadState(svgString) {
-            if (svgDraw) svgDraw.remove();
-            svgDraw = SVG().addTo('#svg-canvas').size('100%', '100%').svg(svgString);
-            svgDraw.children().forEach(el => {
-                 el.on('click', (e) => { e.stopPropagation(); selectElement(el); });
-            });
-            selectElement(null);
-            updateLayerPanel();
-            updateHistoryButtons();
-        }
-
-        function updateHistoryButtons() {
-            document.getElementById('undo-btn').disabled = historyIndex <= 0;
-            document.getElementById('redo-btn').disabled = historyIndex >= history.length - 1;
-        }
-
-        async function callApi(endpoint, body) {
-            errorMessage.textContent = '';
-            document.getElementById('generate-btn').disabled = true;
             try {
-                const response = await fetch(endpoint, {
+                const response = await fetch('/.netlify/functions/check-access', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
+                    headers: { Authorization: `Bearer ${user.token.access_token}` }
                 });
+
+                const data = await response.json();
+
+                if (response.ok && data.access) {
+                    hasAccess = true;
+                    paywallOverlay.classList.add('hidden');
+                    console.log(`Access granted. Reason: ${data.reason}`);
+                } else {
+                    hasAccess = false;
+                    showPaywall(data.reason || 'trial_expired');
+                }
+            } catch (error) {
+                hasAccess = false;
+                showPaywall('trial_expired');
+                console.error('Failed to check access:', error);
+            }
+        }
+
+        function showPaywall(reason) {
+            paywallOverlay.classList.remove('hidden');
+            logoutBtn.style.display = (reason !== 'login') ? 'block' : 'none';
+            
+            switch(reason) {
+                case 'login':
+                    paywallTitle.textContent = 'Welcome to SVG Creator Pro';
+                    paywallMessage.textContent = 'Please log in or sign up to start your free 24-hour trial.';
+                    paywallActionBtn.textContent = 'Log In / Sign Up';
+                    paywallActionBtn.onclick = () => netlifyIdentity.open();
+                    break;
+                case 'trial_expired':
+                default:
+                    paywallTitle.textContent = 'Your Trial Has Expired';
+                    paywallMessage.textContent = 'Please subscribe to our Pro plan to continue creating unlimited designs.';
+                    paywallActionBtn.textContent = 'Subscribe to Pro';
+                    paywallActionBtn.onclick = redirectToCheckout;
+                    break;
+            }
+        }
+        
+        logoutBtn.onclick = () => netlifyIdentity.logout();
+
+        async function redirectToCheckout() {
+            const user = netlifyIdentity.currentUser();
+            if (!user) return;
+
+            paywallActionBtn.disabled = true;
+            paywallActionBtn.textContent = 'Redirecting...';
+
+            try {
+                const response = await fetch('/.netlify/functions/create-checkout', {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${user.token.access_token}` }
+                });
+                if (!response.ok) throw new Error('Could not create checkout session.');
+                
+                const { sessionId } = await response.json();
+                
+                // IMPORTANT: Replace this with your Stripe Publishable Key
+                const stripe = Stripe('YOUR_STRIPE_PUBLISHABLE_KEY'); 
+                await stripe.redirectToCheckout({ sessionId });
+
+            } catch (error) {
+                console.error('Error redirecting to checkout:', error);
+                alert('Could not connect to the payment page. Please try again.');
+                paywallActionBtn.disabled = false;
+                paywallActionBtn.textContent = 'Subscribe to Pro';
+            }
+        }
+
+        // --- Modified Generate Function ---
+        async function handleGenerateClick() {
+            if (!hasAccess) {
+                checkUserAccess();
+                return;
+            }
+            
+            const prompt = document.getElementById('prompt').value;
+            if (!prompt) {
+                alert("Please enter a design prompt.");
+                return;
+            }
+
+            generateBtn.disabled = true;
+            generateBtn.textContent = 'Generating...';
+
+            try {
+                 const response = await fetch('/.netlify/functions/generate-svg', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${netlifyIdentity.currentUser().token.access_token}`
+                    },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+
                 if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(errorData.error || `API error: ${response.statusText}`);
+                    throw new Error(errorData.error || 'Failed to generate design.');
                 }
-                return await response.json();
+                
+                const svgData = await response.json();
+                renderSVG(svgData);
+
             } catch (error) {
-                errorMessage.textContent = error.message;
-                return null;
+                console.error('Generation failed:', error);
+                alert(`Error: ${error.message}`);
             } finally {
-                document.getElementById('generate-btn').disabled = false;
+                generateBtn.disabled = false;
+                generateBtn.textContent = 'Generate Design';
             }
         }
-        
-        function updateLayerPanel() {
+
+        function renderSVG(svgData) {
+            initializeCanvas();
             layersPanel.innerHTML = '';
-            const elements = svgDraw.children();
-            if (elements.length === 0) {
-                downloadBtn.disabled = true;
-                return;
-            }
+            if (!svgData || !svgData.layers) return;
+
+            svgDraw.viewbox(svgData.viewBox || '0 0 500 500');
+
+            svgData.layers.forEach(layer => {
+                let element;
+                if (layer.type === 'text') {
+                    element = svgDraw.text(layer.attributes.text).attr(layer.attributes);
+                } else if (layer.type === 'path') {
+                    element = svgDraw.path(layer.attributes.d).attr(layer.attributes);
+                }
+                if (element) {
+                    element.id(layer.id);
+                    const layerDiv = document.createElement('div');
+                    layerDiv.className = 'p-2 rounded-md hover:bg-gray-100 text-sm';
+                    layerDiv.textContent = layer.id;
+                    layersPanel.appendChild(layerDiv);
+                }
+            });
             downloadBtn.disabled = false;
-            
-            elements.slice().reverse().forEach(el => {
-                 const name = el.id() || 'shape';
-                 const layerDiv = document.createElement('div');
-                 layerDiv.className = `p-2 rounded-md hover:bg-gray-100 flex items-center ${selectedElement && selectedElement.id() === el.id() ? 'layer-selected' : ''}`;
-                 layerDiv.innerHTML = `<span class="flex-grow">${name}</span>`;
-                 layerDiv.onclick = () => selectElement(el);
-                 layersPanel.appendChild(layerDiv);
-            });
         }
         
-        function updateEditControls() {
-            editControlsContainer.innerHTML = '';
-            saveToLibraryBtn.style.display = 'none';
-
-            if (!selectedElement) return;
-            
-            saveToLibraryBtn.style.display = 'block';
-            let controlsHtml = `<div><label class="text-sm font-medium">Color</label><input type="color" value="${selectedElement.attr('fill')}" class="w-full h-10 mt-1" oninput="selectedElement.fill(this.value)" onchange="saveState()"></div>`;
-            editControlsContainer.innerHTML = controlsHtml;
-        }
-
-        function updateLibraryPanel() {
-            libraryItemsEl.innerHTML = '';
-            const items = JSON.parse(localStorage.getItem('svg_library') || '{}');
-            if (Object.keys(items).length === 0) {
-                libraryItemsEl.innerHTML = `<p class="text-gray-400 text-center text-sm py-4">Your saved assets will appear here.</p>`;
-                return;
-            }
-            for (const name in items) {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'p-2 border rounded-md flex items-center justify-between';
-                itemDiv.innerHTML = `<span>${name}</span><button class="text-xs bg-gray-200 px-2 py-1 rounded" onclick="addFromLibrary('${name}')">Add</button>`;
-                libraryItemsEl.appendChild(itemDiv);
-            }
-        }
-
-        function saveToLibrary() {
-            if (!selectedElement) return;
-            const name = prompt("Save asset as:", selectedElement.id());
-            if (name) {
-                const library = JSON.parse(localStorage.getItem('svg_library') || '{}');
-                library[name] = selectedElement.svg();
-                localStorage.setItem('svg_library', JSON.stringify(library));
-                updateLibraryPanel();
-                document.getElementById('tab-library').click();
-            }
-        }
-
-        function addFromLibrary(name) {
-            const items = JSON.parse(localStorage.getItem('svg_library') || '{}');
-            if (items[name]) {
-                const group = svgDraw.group().svg(items[name]);
-                group.move(100, 100).id(`lib_item_${Date.now()}`);
-                group.children().forEach(child => child.id(`${group.id()}_${child.type}`));
-                selectElement(group.children()[0]); // Select first child
-                saveState();
-                updateLayerPanel();
-            }
-        }
-        
-        function startMagicEdit(e) {
-            if (activeTool !== 'magic-edit') return;
-            const pt = svgDraw.point(e.clientX, e.clientY);
-            magicEditMask = svgDraw.path(`M${pt.x} ${pt.y}`).attr({ id: 'magic-edit-mask' });
-            svgCanvasEl.addEventListener('mousemove', drawMagicEdit);
-            svgCanvasEl.addEventListener('mouseup', endMagicEdit);
-        }
-
-        function drawMagicEdit(e) {
-            const pt = svgDraw.point(e.clientX, e.clientY);
-            magicEditMask.plot(magicEditMask.plot() + ` L${pt.x} ${pt.y}`);
-        }
-
-        function endMagicEdit() {
-            svgCanvasEl.removeEventListener('mousemove', drawMagicEdit);
-            svgCanvasEl.removeEventListener('mouseup', endMagicEdit);
-            magicEditMask.plot(magicEditMask.plot() + ' Z'); // Close the path
-            document.getElementById('magic-edit-modal').style.display = 'flex';
-        }
-
-        async function submitMagicEdit() {
-            const prompt = document.getElementById('magic-edit-prompt').value;
-            if (!prompt || !magicEditMask) return;
-
-            const affectedElements = svgDraw.children().filter(child => {
-                 if (child.inside(magicEditMask.bbox())) return true;
-                 return false; // More complex intersection logic needed for real app
-            });
-
-            const context = {
-                fullSvg: svgDraw.svg(),
-                elementsToEdit: affectedElements.map(el => el.svg())
-            };
-            
-            const result = await callApi('/.netlify/functions/edit-svg', { prompt, svgContext: context });
-            
-            if (result && result.layers) {
-                affectedElements.forEach(el => el.remove());
-                result.layers.forEach(layer => {
-                     // simplified render
-                    svgDraw.path(layer.attributes.d).attr(layer.attributes).id(layer.id);
-                });
-                saveState();
-                updateLayerPanel();
-            }
-
-            document.getElementById('magic-edit-modal').style.display = 'none';
-            if(magicEditMask) magicEditMask.remove();
-            magicEditMask = null;
-        }
-
-        // --- Event Listeners Setup ---
-        document.getElementById('generate-btn').addEventListener('click', async () => {
-             const result = await callApi('/.netlify/functions/generate-svg', {
-                prompt: document.getElementById('prompt').value,
-                stylePreset: document.getElementById('style-preset').value
-            });
-            if (result) {
-                loadState(`<svg viewbox="${result.viewBox}">${result.layers.map(l => {
-                    const attrs = Object.entries(l.attributes).map(([k,v]) => `${k}="${v}"`).join(' ');
-                    return l.type === 'path' ? `<path id="${l.id}" ${attrs}></path>` : '';
-                }).join('')}</svg>`);
-            }
-        });
-
-        document.querySelectorAll('[id^=tool-]').forEach(b => b.addEventListener('click', () => setActiveTool(b.id.split('-')[1])));
-        document.querySelectorAll('[id^=tab-]').forEach(b => b.addEventListener('click', () => {
-            document.querySelector('.tab-active').classList.remove('tab-active');
-            b.classList.add('tab-active');
-            document.getElementById('panel-generate').style.display = b.id === 'tab-generate' ? 'block' : 'none';
-            document.getElementById('panel-library').style.display = b.id === 'tab-library' ? 'block' : 'none';
-        }));
-        
-        saveToLibraryBtn.addEventListener('click', saveToLibrary);
-        document.getElementById('undo-btn').addEventListener('click', undo);
-        document.getElementById('redo-btn').addEventListener('click', redo);
-        svgCanvasEl.addEventListener('mousedown', startMagicEdit);
-        document.getElementById('magic-edit-submit').addEventListener('click', submitMagicEdit);
-        document.getElementById('magic-edit-cancel').addEventListener('click', () => {
-            document.getElementById('magic-edit-modal').style.display = 'none';
-            if(magicEditMask) magicEditMask.remove();
-        });
         downloadBtn.addEventListener('click', () => {
-            if(selectedElement) selectedElement.selectize(false);
+            if (!svgDraw) return;
             const blob = new Blob([svgDraw.svg()], { type: 'image/svg+xml' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
             a.download = 'design.svg';
             a.click();
-            if(selectedElement) selectElement(selectedElement);
         });
 
-        initializeCanvas();
 
+        // --- Initial Load ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeCanvas();
+            const user = netlifyIdentity.currentUser();
+            if (user) {
+                 userStatusEl.innerHTML = `<span class="text-sm">${user.email}</span><button onclick="netlifyIdentity.logout()" class="ml-2 text-sm font-medium text-gray-600 hover:text-indigo-600">Log Out</button>`;
+                 checkUserAccess();
+            } else {
+                userStatusEl.innerHTML = `<button onclick="netlifyIdentity.open()" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">Log In / Sign Up</button>`;
+                showPaywall('login');
+            }
+            
+            generateBtn.addEventListener('click', handleGenerateClick);
+            
+            // Initialize Netlify Identity Widget
+            if (window.netlifyIdentity) {
+                netlifyIdentity.init();
+            }
+        });
     </script>
 </body>
 </html>
