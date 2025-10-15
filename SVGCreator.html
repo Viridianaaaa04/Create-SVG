@@ -118,7 +118,6 @@
         </div>
     </main>
     
-    <script>
        <script>
         // --- DOM Elements ---
         const promptEl = document.getElementById('prompt');
@@ -144,105 +143,41 @@
         
         initializeCanvas();
 
-        // --- API Call to Gemini ---
-        const systemPrompt = `You are an expert SVG designer specializing in creating layered designs for cutting machines like Cricut and Glowforge, specifically for cake toppers. Analyze the user's prompt and convert it into a structured JSON format representing the layers of an SVG file.
-
-        **RULES:**
-        1.  **JSON Structure:** The root of the JSON object MUST be \`{ "viewBox": "0 0 500 500", "layers": [...] }\`.
-        2.  **Layers:** The \`layers\` array must contain objects. Each object is a distinct, non-overlapping layer suitable for cutting.
-        3.  **Layer Object Schema:** Each layer object must have:
-            * \`id\`: a unique string ID (e.g., "layer1_text").
-            * \`type\`: MUST be either 'path' or 'text'.
-            * \`attributes\`: An object containing valid SVG attributes.
-        4.  **Path Attributes:** For \`type: 'path'\`, \`attributes\` MUST include \`d\` (the SVG path data string) and \`fill\`.
-        5.  **Text Attributes:** For \`type: 'text'\`, \`attributes\` MUST include \`text\` (the content), \`x\`, \`y\`, \`font-family\` (e.g., 'cursive', 'sans-serif', 'serif'), \`font-size\`, \`font-weight\` ('normal', 'bold'), and \`fill\`. Anchor text in the middle using \`text-anchor: "middle"\`.
-        6.  **Simplicity:** Designs should be simple, bold, and connected where necessary to form a solid object. Avoid overly complex or thin paths.
-        7.  **Colors:** Use simple, web-safe hex color codes.
-
-        **EXAMPLE:**
-        * **User Prompt:** "Happy 10th Birthday Sarah"
-        * **Expected JSON Output:**
-            \`\`\`json
-            {
-              "viewBox": "0 0 500 500",
-              "layers": [
-                {
-                  "id": "layer1_happy_birthday",
-                  "type": "text",
-                  "attributes": {
-                    "text": "Happy 10th Birthday",
-                    "x": 250,
-                    "y": 200,
-                    "font-family": "cursive",
-                    "font-size": "60",
-                    "font-weight": "bold",
-                    "fill": "#333333",
-                    "text-anchor": "middle"
-                  }
-                },
-                {
-                  "id": "layer2_sarah",
-                  "type": "text",
-                  "attributes": {
-                    "text": "Sarah",
-                    "x": 250,
-                    "y": 280,
-                    "font-family": "serif",
-                    "font-size": "80",
-                    "font-weight": "bold",
-                    "fill": "#333333",
-                    "text-anchor": "middle"
-                  }
-                }
-              ]
-            }
-            \`\`\`
-        `;
-
+        // --- API Call to our Serverless Function ---
         async function generateSVGData(userPrompt) {
             setLoading(true);
             errorMessage.textContent = '';
             
-            // IMPORTANT: Make sure your API key is pasted correctly here.
-            const apiKey = "AIzaSyAX3W5zIQzpbbPdNwaOYP48o73h5IsiDxI"; 
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-
-            const payload = {
-                contents: [{ parts: [{ text: userPrompt }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-                generationConfig: { responseMimeType: "application/json" }
-            };
+            // THIS IS THE IMPORTANT CHANGE! We now call our own function.
+            const apiUrl = `/.netlify/functions/generate-svg`;
 
             try {
                 let response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    // We send the user's prompt in the body
+                    body: JSON.stringify({ prompt: userPrompt })
                 });
 
                 if (!response.ok) {
-                    throw new Error(`API error: ${response.statusText}`);
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `API error: ${response.statusText}`);
                 }
 
+                // The serverless function will return the JSON data from Google
                 const result = await response.json();
-                const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-                
-                if (!jsonText) {
-                    throw new Error("Received an empty response from the AI.");
-                }
-
-                return JSON.parse(jsonText);
+                return result;
 
             } catch (error) {
-                console.error("Error fetching or parsing AI response:", error);
-                errorMessage.textContent = "Failed to generate design. Please try again or rephrase your prompt.";
+                console.error("Error calling serverless function:", error);
+                errorMessage.textContent = error.message || "Failed to generate design. Please try again.";
                 return null;
             } finally {
                 setLoading(false);
             }
         }
 
-        // --- UI & State Management ---
+        // --- UI & State Management (No changes here) ---
         function setLoading(isLoading) {
             generateBtn.disabled = isLoading;
             spinner.classList.toggle('hidden', !isLoading);
@@ -322,7 +257,7 @@
             updateLayerPanel();
         }
 
-        // --- SVG Rendering ---
+        // --- SVG Rendering (No changes here) ---
         function renderSVG(svgData) {
             clearWorkspace();
 
@@ -351,7 +286,7 @@
             downloadBtn.disabled = false;
         }
 
-        // --- Event Handlers ---
+        // --- Event Handlers (No changes here) ---
         generateBtn.addEventListener('click', async () => {
             const userPrompt = promptEl.value;
             if (!userPrompt) {
@@ -372,7 +307,6 @@
         });
 
         svgCanvasEl.addEventListener('click', (e) => {
-            // Deselect if clicking the background
             if (e.target === svgCanvasEl || e.target.tagName === 'svg') {
                 selectElement(null);
             }
@@ -380,14 +314,9 @@
 
         downloadBtn.addEventListener('click', () => {
             if (!svgDraw) return;
-             // Temporarily deselect element for a clean download
             if(selectedElement) selectedElement.selectize(false);
-
             const svgString = svgDraw.svg();
-
-            // Re-select the element if it was selected before
             if(selectedElement) selectElement(selectedElement);
-
             const blob = new Blob([svgString], { type: 'image/svg+xml' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -398,8 +327,8 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
         });
-
     </script>
 </body>
 </html>
+
 
