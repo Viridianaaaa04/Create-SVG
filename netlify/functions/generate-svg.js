@@ -40,3 +40,64 @@ const systemPrompt = `You are a skilled SVG vector artist who creates layered de
     }
     \`\`\`
 `;
+
+exports.handler = async function(event) {
+    // We only accept POST requests
+    if (event.httpMethod !== 'POST') {
+        return { statusCode: 405, body: 'Method Not Allowed' };
+    }
+
+    try {
+        const { prompt } = JSON.parse(event.body);
+        if (!prompt) {
+            return { statusCode: 400, body: JSON.stringify({ error: 'Prompt is required.' }) };
+        }
+
+        // Your API Key is safely stored in Netlify's environment variables
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            return { statusCode: 500, body: JSON.stringify({ error: 'API key is not configured.' }) };
+        }
+
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+        const payload = {
+            contents: [{ parts: [{ text: prompt }] }],
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            generationConfig: { responseMimeType: "application/json" }
+        };
+        
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.text();
+            console.error('Google API Error:', errorBody);
+            return { statusCode: response.status, body: JSON.stringify({ error: `Google API Error: ${response.statusText}` }) };
+        }
+
+        const result = await response.json();
+        const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        
+        if (!jsonText) {
+            return { statusCode: 500, body: JSON.stringify({ error: "Received an empty response from the AI." }) };
+        }
+
+        return {
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/json' },
+            body: jsonText // We return the raw JSON text from Google
+        };
+
+    } catch (error) {
+        console.error('Function Error:', error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ error: error.message || 'An internal server error occurred.' })
+        };
+    }
+};
+
