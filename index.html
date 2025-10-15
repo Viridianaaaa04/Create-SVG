@@ -179,7 +179,7 @@
                 const { sessionId } = await response.json();
                 
                 // IMPORTANT: Replace this with your Stripe Publishable Key
-                const stripe = Stripe('YOUR_STRIPE_PUBLISHABLE_KEY'); 
+                const stripe = Stripe('pk_test_51SIYM3JwRP2WaCmsUtIY1trihKvM3S00shA1lgZJm5U6hnWnrGcjJFqcHgA5X4Qw6K74MNRvO0i6Ex7O4nZQeJVU007oNTbt8T'); 
                 await stripe.redirectToCheckout({ sessionId });
 
             } catch (error) {
@@ -290,4 +290,5 @@
     </script>
 </body>
 </html>
+
 
