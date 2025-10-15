@@ -4,123 +4,88 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Cake Topper SVG Generator</title>
-    
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Google Fonts: Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- SVG.js and plugins for manipulation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.js/3.2.0/svg.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.select.js/3.0.1/svg.select.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.draggable.js/3.0.2/svg.draggable.min.js"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/@svgdotjs/svg.js@3.0/dist/svg.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@svgdotjs/svg.select.js@3.0/dist/svg.select.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@svgdotjs/svg.draggable.js@3.0/dist/svg.draggable.min.js"></script>
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6; /* Cool Gray 100 */
-        }
-        /* Custom styles for SVG.js selection box */
-        .svg_select_boundingRect {
-            stroke: #4f46e5; /* Indigo 600 */
-            stroke-width: 1;
-            stroke-dasharray: 4 4;
-            fill: rgba(79, 70, 229, 0.05);
-        }
-        .svg_select_points_lt, .svg_select_points_rt, .svg_select_points_rb, .svg_select_points_lb {
-            fill: #4f46e5;
-            stroke: white;
-            stroke-width: 1;
-        }
-        .svg_select_points_r, .svg_select_points_b {
-            visibility: hidden; /* Hide side resize handles for simplicity */
-        }
-        /* Custom class for selected layer */
-        .layer-selected {
-            background-color: #e0e7ff; /* Indigo 100 */
-            font-weight: 600;
-        }
-        /* Simple spinner animation */
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        .spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            border-left-color: #4f46e5;
-            border-radius: 50%;
-            width: 2rem;
-            height: 2rem;
-            animation: spin 1s linear infinite;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .layer-selected { background-color: #e0e7ff !important; }
+        .dragging { opacity: 0.5; background: #c7d2fe; }
+        .drag-over { border-top: 2px solid #4f46e5; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="bg-gray-50 text-gray-800">
 
-    <!-- Header -->
-    <header class="bg-white shadow-md w-full">
-        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <h1 class="text-2xl font-bold text-gray-800">AI Cake Topper SVG Generator</h1>
-            <p class="text-gray-500 text-sm">Describe your design, and let AI create the layered SVG for you.</p>
-        </div>
-    </header>
-
-    <!-- Main Content -->
-    <main class="container mx-auto p-4 sm:p-6 lg:p-8 flex-grow grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+    <div class="flex flex-col md:flex-row h-screen">
         <!-- Left Panel: Controls -->
-        <div class="lg:col-span-1 bg-white rounded-lg shadow-md p-6 flex flex-col h-full">
-            <!-- Prompt Input -->
+        <aside class="w-full md:w-96 bg-white p-6 border-r border-gray-200 flex flex-col space-y-6 overflow-y-auto">
+            <div class="flex items-center space-x-3">
+                <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                <h1 class="text-2xl font-bold text-gray-900">SVG Creator</h1>
+            </div>
+
+            <!-- Prompt Section -->
             <div>
-                <label for="prompt" class="block text-sm font-medium text-gray-700">1. Enter Your Design Prompt</label>
-                <textarea id="prompt" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="e.g., 'Happy 40th Birthday, David!' in a bold script font with a star."></textarea>
+                <label for="prompt" class="block text-sm font-medium text-gray-700 mb-1">1. Enter Your Design Prompt</label>
+                <textarea id="prompt" rows="4" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., A happy dinosaur with a birthday hat"></textarea>
             </div>
             
-            <button id="generate-btn" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center disabled:bg-indigo-300">
-                <span id="generate-btn-text">Generate Design</span>
-                <div id="spinner" class="spinner hidden ml-3"></div>
-            </button>
-            <div id="error-message" class="text-red-500 text-sm mt-2"></div>
+            <!-- NEW: Constraints Section -->
+            <div>
+                 <label class="block text-sm font-medium text-gray-700 mb-1">2. Set Constraints (Optional)</label>
+                 <div class="grid grid-cols-2 gap-4">
+                     <div>
+                         <label for="max-layers" class="text-xs text-gray-600">Max Layers</label>
+                         <input type="number" id="max-layers" class="w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm" placeholder="e.g., 5">
+                     </div>
+                     <div>
+                         <label for="max-colors" class="text-xs text-gray-600">Max Colors</label>
+                         <input type="number" id="max-colors" class="w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm" placeholder="e.g., 3">
+                     </div>
+                 </div>
+            </div>
 
-            <hr class="my-6">
+            <!-- Generate Button -->
+            <button id="generate-btn" class="w-full flex items-center justify-center bg-indigo-600 text-white font-semibold py-2.5 px-4 rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300 disabled:cursor-not-allowed">
+                <svg id="spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span id="generate-btn-text">Generate Design</span>
+            </button>
+            <p id="error-message" class="text-sm text-red-600"></p>
 
             <!-- Layers Panel -->
-            <div class="flex-grow flex flex-col min-h-0">
-                <h2 class="text-sm font-medium text-gray-700">2. Edit Layers</h2>
-                <div id="layers-panel" class="mt-2 flex-grow overflow-y-auto bg-gray-50 p-2 rounded-md border border-gray-200">
+            <div class="flex-grow flex flex-col">
+                <h2 class="text-sm font-medium text-gray-700 mb-2">3. Edit Layers</h2>
+                <div id="layers-panel" class="flex-grow bg-gray-50 border rounded-md p-2 space-y-1 overflow-y-auto">
                     <p class="text-gray-400 text-center text-sm py-4">Your layers will appear here...</p>
                 </div>
             </div>
 
-            <!-- Editing Controls (contextual) -->
-            <div id="edit-controls" class="mt-4 hidden">
-                <label for="color-picker" class="block text-sm font-medium text-gray-700">Layer Color</label>
-                <input type="color" id="color-picker" class="mt-1 w-full h-10 p-1 border border-gray-300 rounded-md cursor-pointer">
+            <!-- Edit Controls -->
+            <div id="edit-controls" class="hidden space-y-4">
+                <div>
+                    <label for="color-picker" class="block text-sm font-medium text-gray-700 mb-1">Layer Color</label>
+                    <input type="color" id="color-picker" class="w-full h-10 p-1 border border-gray-300 rounded-md cursor-pointer">
+                </div>
+                <button id="download-btn" disabled class="w-full bg-green-600 text-white font-semibold py-2.5 px-4 rounded-md shadow-sm hover:bg-green-700 disabled:bg-green-300">Download SVG</button>
             </div>
-
-             <hr class="my-6">
-            
-            <!-- Download Button -->
-            <div>
-                <h2 class="text-sm font-medium text-gray-700">3. Download</h2>
-                <button id="download-btn" class="mt-2 w-full bg-green-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-green-700 disabled:bg-green-300 flex items-center justify-center" disabled>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                    Download SVG
-                </button>
-            </div>
-        </div>
+        </aside>
 
         <!-- Right Panel: SVG Canvas -->
-        <div class="lg:col-span-2 bg-white rounded-lg shadow-md p-4 flex items-center justify-center border-2 border-dashed border-gray-200">
-            <div id="svg-canvas" class="w-full h-full min-h-[400px] lg:min-h-0"></div>
-        </div>
-    </main>
-    
-       <script>
+        <main class="flex-1 bg-gray-100 p-4 md:p-8 flex items-center justify-center">
+            <div id="svg-canvas" class="w-full h-full max-w-4xl max-h-4xl bg-white rounded-lg shadow-inner border border-gray-200 aspect-square"></div>
+        </main>
+    </div>
+
+    <script>
         // --- DOM Elements ---
         const promptEl = document.getElementById('prompt');
+        const maxLayersEl = document.getElementById('max-layers');
+        const maxColorsEl = document.getElementById('max-colors');
         const generateBtn = document.getElementById('generate-btn');
         const generateBtnText = document.getElementById('generate-btn-text');
         const spinner = document.getElementById('spinner');
@@ -134,6 +99,7 @@
         // --- State ---
         let svgDraw;
         let selectedElement = null;
+        let draggedItem = null;
 
         // --- SVG.js Initialization ---
         function initializeCanvas() {
@@ -143,20 +109,18 @@
         
         initializeCanvas();
 
-        // --- API Call to our Serverless Function ---
-        async function generateSVGData(userPrompt) {
+        // --- API Call ---
+        async function generateSVGData(userPrompt, maxLayers, maxColors) {
             setLoading(true);
             errorMessage.textContent = '';
             
-            // THIS IS THE IMPORTANT CHANGE! We now call our own function.
             const apiUrl = `/.netlify/functions/generate-svg`;
 
             try {
                 let response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    // We send the user's prompt in the body
-                    body: JSON.stringify({ prompt: userPrompt })
+                    body: JSON.stringify({ prompt: userPrompt, maxLayers, maxColors })
                 });
 
                 if (!response.ok) {
@@ -164,7 +128,6 @@
                     throw new Error(errorData.error || `API error: ${response.statusText}`);
                 }
 
-                // The serverless function will return the JSON data from Google
                 const result = await response.json();
                 return result;
 
@@ -177,7 +140,7 @@
             }
         }
 
-        // --- UI & State Management (No changes here) ---
+        // --- UI & State Management ---
         function setLoading(isLoading) {
             generateBtn.disabled = isLoading;
             spinner.classList.toggle('hidden', !isLoading);
@@ -192,28 +155,37 @@
             selectedElement = null;
         }
 
+        // --- Layer Panel & Drag-n-Drop ---
         function updateLayerPanel() {
             layersPanel.innerHTML = '';
-            const elements = svgDraw.children();
+            const elements = svgDraw.children().slice().reverse(); // Reverse to show top layer first
             
             if (elements.length === 0) {
                  layersPanel.innerHTML = '<p class="text-gray-400 text-center text-sm py-4">No layers to show.</p>';
                  return;
             }
 
-            elements.forEach(el => {
+            elements.forEach((el, index) => {
                 const layerId = el.id();
                 const layerDiv = document.createElement('div');
-                layerDiv.className = 'p-2 rounded-md cursor-pointer flex items-center justify-between hover:bg-gray-100';
+                layerDiv.className = 'p-2 rounded-md cursor-grab flex items-center justify-between hover:bg-gray-100';
                 layerDiv.dataset.id = layerId;
+                layerDiv.draggable = true;
+
+                // Drag and Drop Event Listeners
+                layerDiv.addEventListener('dragstart', handleDragStart);
+                layerDiv.addEventListener('dragover', handleDragOver);
+                layerDiv.addEventListener('dragleave', handleDragLeave);
+                layerDiv.addEventListener('drop', handleDrop);
+                layerDiv.addEventListener('dragend', handleDragEnd);
 
                 const colorSwatch = document.createElement('span');
-                colorSwatch.className = 'w-4 h-4 rounded-full inline-block mr-2 border';
+                colorSwatch.className = 'w-4 h-4 rounded-full inline-block mr-2 border pointer-events-none';
                 colorSwatch.style.backgroundColor = el.attr('fill');
 
                 const layerName = document.createElement('span');
                 layerName.textContent = layerId;
-                layerName.className = 'text-sm truncate flex-grow';
+                layerName.className = 'text-sm truncate flex-grow pointer-events-none';
 
                 const wrapper = document.createElement('div');
                 wrapper.className = 'flex items-center'
@@ -227,37 +199,66 @@
                     layerDiv.classList.add('layer-selected');
                 }
 
-                layerDiv.addEventListener('click', () => {
-                    selectElement(el);
-                });
+                layerDiv.addEventListener('click', () => selectElement(el));
             });
         }
         
+        function handleDragStart(e) {
+            draggedItem = this;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+            setTimeout(() => this.classList.add('dragging'), 0);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            this.classList.add('drag-over');
+        }
+        
+        function handleDragLeave() {
+            this.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.stopPropagation();
+            if (draggedItem !== this) {
+                const draggedId = draggedItem.dataset.id;
+                const targetId = this.dataset.id;
+                const draggedElement = SVG.get(draggedId);
+                const targetElement = SVG.get(targetId);
+
+                // Reorder SVG element
+                draggedElement.insertAfter(targetElement);
+                
+                // Re-render layer panel in new order
+                updateLayerPanel();
+            }
+        }
+        
+        function handleDragEnd() {
+            document.querySelectorAll('#layers-panel div').forEach(item => {
+                item.classList.remove('dragging', 'drag-over');
+            });
+            draggedItem = null;
+        }
+
         function selectElement(el) {
             if (selectedElement) {
                 selectedElement.selectize(false);
             }
-
             selectedElement = el;
-            
             if (el) {
-                el.selectize({
-                    points: 'lt,rt,rb,lb,r,b',
-                    rotationPoint: false,
-                }).resize();
-                
+                el.selectize({ points: 'lt,rt,rb,lb,r,b', rotationPoint: false }).resize();
                 el.draggable();
-
                 colorPicker.value = el.attr('fill');
                 editControls.classList.remove('hidden');
             } else {
                 editControls.classList.add('hidden');
             }
-
             updateLayerPanel();
         }
 
-        // --- SVG Rendering (No changes here) ---
+        // --- SVG Rendering ---
         function renderSVG(svgData) {
             clearWorkspace();
 
@@ -286,14 +287,16 @@
             downloadBtn.disabled = false;
         }
 
-        // --- Event Handlers (No changes here) ---
+        // --- Event Handlers ---
         generateBtn.addEventListener('click', async () => {
             const userPrompt = promptEl.value;
+            const maxLayers = maxLayersEl.value || null;
+            const maxColors = maxColorsEl.value || null;
             if (!userPrompt) {
                 errorMessage.textContent = 'Please enter a prompt.';
                 return;
             }
-            const svgData = await generateSVGData(userPrompt);
+            const svgData = await generateSVGData(userPrompt, maxLayers, maxColors);
             if (svgData) {
                 renderSVG(svgData);
             }
@@ -330,5 +333,4 @@
     </script>
 </body>
 </html>
-
 
